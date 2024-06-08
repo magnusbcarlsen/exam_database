@@ -54,6 +54,7 @@ CREATE TABLE orders(
     order_date      TEXT,
     order_amount    REAL,
     order_status    TEXT,
+    
     PRIMARY KEY (order_pk),
     FOREIGN KEY (customer_fk) REFERENCES customers(customer_pk)
 ) WITHOUT ROWID;
@@ -135,7 +136,7 @@ SELECT * FROM payments;
 CREATE TABLE shippings(
     shipping_pk         TEXT UNIQUE,
     order_fk            TEXT,
-    shipping_date       TEXT,
+    shipping_date       TEXT CURRENT_TIMESTAMP,
     shipping_address    TEXT,
     shipping_status     TEXT,
     PRIMARY KEY (shipping_pk),
@@ -149,10 +150,6 @@ INSERT INTO shippings (shipping_pk, order_fk, shipping_date, shipping_address, s
     ('3004', '1004', NULL, 'address4', 'Pending');
 
 SELECT * FROM shippings;
-
--- Query to display products after insertion
-SELECT * FROM products;
-SELECT * FROM customers;
 
 
 -- JOIN
@@ -192,15 +189,38 @@ SELECT * FROM all_orders_view;
 
 
 -- TRIGGERS
--- CREATE TRIGGER IF NOT EXISTS after_order_insert
+z
+
+
+
+
+-- DROP TRIGGER IF EXISTS update_shipping_booking_fk;
+-- CREATE TRIGGER update_shipping_booking_fk
 -- AFTER INSERT ON orders
+-- FOR EACH ROW
 -- BEGIN
---     -- Assuming you want to set default values for these fields
---     INSERT INTO shippings (shipping_pk, order_fk, shipping_date, shipping_address, shipping_status)
---     VALUES ('SH' || NEW.order_pk, NEW.order_pk, 'Not yet shipped', 'Address not set', 'Pending');
+--     UPDATE shippings
+--     SET order_fk = NEW.shipping_pk
+--     WHERE order_pk = NEW.order_fk;
 -- END;
 
--- INSERT INTO orders (order_pk, customer_fk, order_date, order_amount, order_status)
--- VALUES ('1005', '1', '2024-05-01', 2500, 'Processing');
+-- INSERT INTO shippings(shipping_pk, customer_fk) VALUES('111', '222');
 
--- SELECT * FROM after_order_insert;
+
+-- CRUD operations
+INSERT INTO 
+products (product_pk, product_name, product_description, product_price, product_stock) 
+VALUES
+('80', 'Product 80', 'Description of product 80', 10.99, 100);
+
+-- READ
+SELECT * FROM products ORDER BY product_price ASC;
+
+-- UPDATE
+UPDATE products  
+SET product_price = 15.99
+WHERE product_pk = '1';
+
+-- DELETE 
+DELETE FROM shippings
+WHERE shipping_pk = 'SH1005';
