@@ -103,7 +103,7 @@ CREATE TABLE customers(
 
 INSERT INTO customers(customer_pk, customer_name, customer_email, customer_address, customer_phone) VALUES
     ('1', 'customerName1', 'customer1@email.com', 'address1', '111'),
-    ('2', 'customerName2', 'customer2@email.com', 'address2', '222'),
+    ('2', 'customerName2', 'customer2@email.com', 'address1', '222'),
     ('3', 'customerName3', 'customer3@email.com', 'address3', '333'),
     ('4', 'customerName4', 'customer4@email.com', 'address4', '444'),
     ('5', 'customerName5', 'customer5@email.com', 'address5', '555'),
@@ -154,6 +154,7 @@ SELECT * FROM shippings;
 
 -- JOIN
 
+-- LEFT JOIN
 DROP VIEW IF EXISTS all_orders_view;
 CREATE VIEW all_orders_view AS
 SELECT
@@ -185,10 +186,77 @@ GROUP BY
 
 SELECT * FROM all_orders_view;
 
+-- INNER JOIN
+SELECT 
+    orders.order_pk, 
+    orders.order_date, 
+    products.product_name, 
+    customers.customer_name
+FROM 
+    orders
+JOIN 
+    customers ON orders.customer_fk = customers.customer_pk
+JOIN 
+    ordered_products ON orders.order_pk = ordered_products.order_fk
+JOIN 
+    products ON ordered_products.product_fk = products.product_pk
+WHERE 
+    orders.order_status = 'Delivered';
+
+-- CROSS JOIN
+DROP TABLE IF EXISTS product_ratings;
+
+CREATE TABLE product_ratings (
+  rating_pk TEXT,
+  customer_fk TEXT,
+  product_fk TEXT,
+  rating INTEGER,
+  comment TEXT,
+  PRIMARY KEY(rating_pk),
+  FOREIGN KEY (customer_fk) REFERENCES customers(customer_pk),
+  FOREIGN KEY (product_fk) REFERENCES products(product_pk)
+);
+
+INSERT INTO product_ratings (rating_pk, customer_fk, product_fk, rating, comment) VALUES
+('1', '1', '1', 5, 'Loved the phone, very responsive!'),
+('2', '1', '2', 4, 'Great laptop but a bit heavy.'),
+('3', '2', '5', 3, 'Expected more features.'),
+('4', '3', '3', 2, 'Sound quality not up to the mark.'),
+('5', '4', '6', 5, 'Excellent tablet, great for my needs!');
+
+SELECT
+  c.customer_name,
+  c.customer_email,
+  pr.product_fk,
+  pr.rating,
+  pr.comment
+FROM
+  customers c
+CROSS JOIN
+  product_ratings pr;
+
+-- SELF JOIN
+DROP TABLE IF EXISTS customer_same_address;
+
+CREATE TABLE customer_same_address AS
+SELECT 
+    A.customer_name AS Customer1, 
+    B.customer_name AS Customer2, 
+    A.customer_address
+FROM 
+    customers A 
+JOIN 
+    customers B 
+ON 
+    A.customer_address = B.customer_address AND A.customer_pk <> B.customer_pk;
+
+SELECT * FROM customer_same_address;
 
 
 
 -- TRIGGERS
+
+-- UDATES STOCK WHEN INSERTING NEW ROW INTO ordered_products
 CREATE TRIGGER IF NOT EXISTS update_product_stock
 AFTER INSERT ON ordered_products
     BEGIN
@@ -198,29 +266,47 @@ AFTER INSERT ON ordered_products
     END;
 
 INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity, unit_price)
-VALUES ('4', '1001', '1', 5, 900);
+VALUES ('8', '1001', '1', 5, 900);
 
-SELECT product_pk, product_name, product_stock
+SELECT product_pk, product_name, product_description, product_price, product_stock
 FROM products
 WHERE product_pk = '1';
 
+SELECT * FROM ordered_products;
+
+------------STATUS LOG-----------
+--Log table for order status changes
+DROP TABLE IF EXISTS order_status_changes;
+CREATE TABLE order_status_changes(
+    log_id              TEXT,
+    order_fk            TEXT,
+    old_status          TEXT,
+    new_status          TEXT,
+    created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (log_id),
+    FOREIGN KEY (order_fk) REFERENCES orders(order_pk)
+);
 
 
+CREATE TRIGGER IF NOT EXISTS trigger_order_status_changes
+AFTER UPDATE OF order_status ON orders
+WHEN OLD.order_status != NEW.order_status
+BEGIN
+    INSERT INTO order_status_changes (order_fk, old_status, new_status)
+    VALUES (NEW.order_pk, OLD.order_status, NEW.order_status);
+END;
 
--- DROP TRIGGER IF EXISTS update_shipping_booking_fk;
--- CREATE TRIGGER update_shipping_booking_fk
--- AFTER INSERT ON orders
--- FOR EACH ROW
--- BEGIN
---     UPDATE shippings
---     SET order_fk = NEW.shipping_pk
---     WHERE order_pk = NEW.order_fk;
--- END;
+INSERT INTO orders (order_pk, customer_fk, order_date, order_amount, order_status)
+VALUES ('3', '1', '2024-02-23', 1500, 'Shipped');
 
--- INSERT INTO shippings(shipping_pk, customer_fk) VALUES('111', '222');
+UPDATE orders
+SET order_status = 'Shipped' 
+WHERE order_pk = '1002';
+
+SELECT * FROM order_status_changes;
 
 
--- CRUD operations
+-- CRUD
 INSERT INTO 
 products (product_pk, product_name, product_description, product_price, product_stock) 
 VALUES
