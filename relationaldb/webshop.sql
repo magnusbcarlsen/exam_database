@@ -48,13 +48,14 @@ INSERT INTO categories(category_pk, category_name) VALUES
 SELECT * FROM categories;
 
 -- Orders table
+DROP TABLE IF EXISTS orders;    
 CREATE TABLE orders(
     order_pk        TEXT UNIQUE,
     customer_fk     TEXT,
     order_date      TEXT,
-    order_amount    REAL,
+    order_amount    INTEGER,
     order_status    TEXT,
-    
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_pk),
     FOREIGN KEY (customer_fk) REFERENCES customers(customer_pk)
 ) WITHOUT ROWID;
@@ -139,6 +140,7 @@ CREATE TABLE shippings(
     shipping_date       TEXT CURRENT_TIMESTAMP,
     shipping_address    TEXT,
     shipping_status     TEXT,
+    created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (shipping_pk),
     FOREIGN KEY (order_fk) REFERENCES orders(order_pk)
 ) WITHOUT ROWID;
@@ -308,6 +310,7 @@ SELECT * FROM order_status_changes;
 -- VIEWS
 
 -- Creating a view to display order details
+DROP VIEW IF EXISTS view_order_details;
 CREATE VIEW view_order_details AS
 SELECT
     o.order_pk AS order_pk,
@@ -334,6 +337,7 @@ SELECT * FROM view_order_details WHERE order_pk = '1003';
 
 
 -- view shipping order deatils
+DROP VIEW IF EXISTS view_order_shipping_details;
 CREATE VIEW view_order_shipping_details AS
 SELECT
     o.order_pk AS order_pk,
