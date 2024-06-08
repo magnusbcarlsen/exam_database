@@ -305,6 +305,59 @@ WHERE order_pk = '1002';
 
 SELECT * FROM order_status_changes;
 
+-- VIEWS
+
+-- Creating a view to display order details
+CREATE VIEW view_order_details AS
+SELECT
+    o.order_pk AS order_pk,
+    o.order_date AS order_date,
+    o.order_amount AS order_amount,
+    c.customer_name AS customer_name,
+    c.customer_email AS customer_email,
+    c.customer_address AS customer_address,
+    GROUP_CONCAT(p.product_name, ', ') AS products
+FROM
+    orders o
+JOIN
+    customers c ON o.customer_fk = c.customer_pk
+JOIN
+    ordered_products op ON o.order_pk = op.order_fk
+JOIN
+    products p ON op.product_fk = p.product_pk
+GROUP BY
+    o.order_pk;
+
+SELECT * FROM view_order_details WHERE order_pk = '1001';
+SELECT * FROM view_order_details WHERE order_pk = '1002';
+SELECT * FROM view_order_details WHERE order_pk = '1003';
+
+
+-- view shipping order deatils
+CREATE VIEW view_order_shipping_details AS
+SELECT
+    o.order_pk AS order_pk,
+    o.order_date AS order_date,
+    o.order_status AS order_status,
+    GROUP_CONCAT(p.product_name, ', ') AS ordered_products,
+    s.shipping_date AS shipping_date,
+    s.shipping_address AS shipping_address,
+    s.shipping_status AS shipping_status
+FROM
+    orders o
+JOIN
+    ordered_products op ON o.order_pk = op.order_fk
+JOIN
+    products p ON op.product_fk = p.product_pk
+LEFT JOIN
+    shippings s ON o.order_pk = s.order_fk
+GROUP BY
+    o.order_pk;
+
+SELECT * FROM view_order_shipping_details WHERE order_pk = '1001';
+SELECT * FROM view_order_shipping_details WHERE order_pk = '1002';
+SELECT * FROM view_order_shipping_details WHERE order_pk = '1003';
+
 
 -- CRUD
 INSERT INTO 
