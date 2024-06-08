@@ -189,7 +189,20 @@ SELECT * FROM all_orders_view;
 
 
 -- TRIGGERS
-z
+CREATE TRIGGER IF NOT EXISTS update_product_stock
+AFTER INSERT ON ordered_products
+    BEGIN
+        UPDATE products
+        SET product_stock = product_stock - NEW.order_quantity
+        WHERE product_pk = NEW.product_fk;
+    END;
+
+INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity, unit_price)
+VALUES ('4', '1001', '1', 5, 900);
+
+SELECT product_pk, product_name, product_stock
+FROM products
+WHERE product_pk = '1';
 
 
 
