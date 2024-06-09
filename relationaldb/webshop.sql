@@ -1,3 +1,13 @@
+SELECT * FROM products;
+SELECT * FROM categories;
+SELECT * FROM orders;
+SELECT * FROM ordered_products;
+SELECT * FROM customers;
+SELECT * FROM payments;
+SELECT * FROM shippings;
+SELECT * FROM all_orders_view;
+
+
 
 DROP TABLE IF EXISTS products;
 --------- Products table --- DATA TABLE
@@ -60,44 +70,43 @@ INSERT INTO orders (order_pk, customer_fk, order_amount, order_status) VALUES
 
 SELECT * FROM orders;
 
------------ Ordered_products table ---- JUNCTION TABLE
+------- Ordered_products table ---- JUNCTION TABLE
 DROP TABLE IF EXISTS ordered_products;
 CREATE TABLE ordered_products(
-    order_item_pk   TEXT,
-    order_fk        TEXT,
-    product_fk      TEXT,
-    order_quantity  INTEGER,
-    unit_price      INTEGER,
+    order_item_pk       TEXT,
+    order_fk            TEXT,
+    product_fk          TEXT,
+    order_quantity      INTEGER,
     PRIMARY KEY (order_item_pk),
     FOREIGN KEY (order_fk) REFERENCES orders(order_pk) ON DELETE CASCADE,
     FOREIGN KEY (product_fk) REFERENCES products(product_pk)
 ) WITHOUT ROWID;
 
-INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity, unit_price) VALUES
-    ('20001', '1001', '1', 2, 900),
-    ('20002', '1001', '4', 1, 2000), 
-    ('20003', '1002', '2', 1, 1200), 
-    ('20004', '1002', '3', 3, 150),
-    ('20005', '1003', '5', 2, 300), 
-    ('20006', '1003', '8', 1, 100), 
-    ('20007', '1004', '9', 1, 1000), 
-    ('20008', '1004', '10', 2, 80); 
+INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity) VALUES
+    ('20001', '1001', '1', 2),
+    ('20002', '1001', '4', 1), 
+    ('20003', '1002', '2', 1), 
+    ('20004', '1002', '3', 3),
+    ('20005', '1003', '5', 2), 
+    ('20006', '1003', '8', 1), 
+    ('20007', '1004', '9', 1), 
+    ('20008', '1004', '10', 2); 
 
 SELECT * FROM ordered_products;
 
 DROP TABLE IF EXISTS customers;
-------------- Customers table --- DATA TABLE
+-------- Customers table --- DATA TABLE
 CREATE TABLE customers(
     customer_pk         TEXT UNIQUE,
     customer_name       TEXT,
     customer_email      TEXT UNIQUE,
     customer_address    TEXT,
-    customer_phone      TEXT,
+    customer_phones      TEXT,
     PRIMARY KEY (customer_pk)
 ) WITHOUT ROWID;
 
-INSERT INTO customers(customer_pk, customer_name, customer_email, customer_address, customer_phone) VALUES
-    ('1', 'customerName1', 'customer1@email.com', 'address1', '111'),
+INSERT INTO customers(customer_pk, customer_name, customer_email, customer_address, customer_phones) VALUES
+    ('1', 'customerName1', 'customer1@email.com', 'address1', '111, 222, 333'),
     ('2', 'customerName2', 'customer2@email.com', 'address1', '222'),
     ('3', 'customerName3', 'customer3@email.com', 'address3', '333'),
     ('4', 'customerName4', 'customer4@email.com', 'address4', '444'),
@@ -107,13 +116,15 @@ INSERT INTO customers(customer_pk, customer_name, customer_email, customer_addre
     ('8', 'customerName8', 'customer8@email.com', 'address8', '888'),
     ('9', 'customerName9', 'customer9@email.com', 'address9', '999');
 
+SELECT * FROM customers;
+
 ---------- Payments table --- TRANSACTION TABLE
 DROP TABLE IF EXISTS payments;
 CREATE TABLE payments(
     payment_pk      TEXT UNIQUE,
     order_fk        TEXT,
     payment_date    TEXT DEFAULT CURRENT_TIMESTAMP,
-    payment_amount  REAL,
+    payment_amount  INTEGER,
     payment_method  TEXT,
     PRIMARY KEY (payment_pk),
     FOREIGN KEY (order_fk) REFERENCES orders(order_pk) ON DELETE CASCADE
@@ -150,7 +161,7 @@ SELECT * FROM shippings;
 
 
 -- JOIN
-
+-- VIEW
 -- LEFT JOIN / VIEW
 DROP VIEW IF EXISTS all_orders_view;
 CREATE VIEW all_orders_view AS
@@ -163,7 +174,7 @@ orders.order_status,
 customers.customer_name,
 customers.customer_email,
 customers.customer_address,
-customers.customer_phone,
+customers.customer_phones,
 GROUP_CONCAT(products.product_name, ', ') AS product_names, -- grouping products if there is more than one
 shippings.shipping_date,
 shippings.shipping_address,
@@ -279,8 +290,8 @@ AFTER INSERT ON ordered_products
         WHERE product_pk = NEW.product_fk;
     END;
 
-INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity, unit_price)
-VALUES ('100', '1001', '1', 5, 900);
+INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity)
+VALUES ('101', '1001', '1', 5);
 
 SELECT product_pk, product_name, product_description, product_price, product_stock
 FROM products
@@ -319,7 +330,7 @@ WHERE order_pk = '226';
 
 SELECT * FROM order_status_changes;
 
--- VIEWS
+
 
 
 -- CRUD
@@ -327,6 +338,39 @@ INSERT INTO
 products (product_pk, product_name, product_description, product_price, product_stock) 
 VALUES
 ('80', 'Product 80', 'Description of product 80', 10.99, 100);
+
+
+-- UNION 
+SELECT
+    product_name,
+    product_price AS amount, 
+    'product price' AS source
+FROM products
+UNION ALL
+SELECT 
+    payment_method AS product_name,
+    payment_amount AS amount, 
+    'payment amount' AS source
+FROM payments;
+
+-- GROUP BY
+-- count numbers of orders
+SELECT customer_fk, COUNT(*) AS number_of_orders
+FROM orders
+GROUP BY customer_fk;
+-- count total money spent by each customer
+SELECT customer_fk, SUM(order_amount) AS total_spent
+FROM orders
+GROUP BY customer_fk;
+
+
+-- HAVING 
+-- customers with more than 1 order 
+SELECT customer_fk, COUNT(*) AS number_of_orders
+FROM orders
+GROUP BY customer_fk
+HAVING COUNT (*) > 1;
+
 
 -- READ
 SELECT * FROM products ORDER BY product_price ASC;
