@@ -1,3 +1,5 @@
+-- PRAGMA foreign_keys = ON;
+
 SELECT * FROM products;
 SELECT * FROM categories;
 SELECT * FROM orders;
@@ -7,22 +9,32 @@ SELECT * FROM payments;
 SELECT * FROM shippings;
 SELECT * FROM all_orders_view;
 
+UPDATE orders
+SET order_amount = (
+    SELECT SUM(p.product_price * op.order_quantity)
+    FROM ordered_products op
+    JOIN products p ON op.product_fk = p.product_pk
+    WHERE op.order_fk = orders.order_pk
+);
 
-
+------- Products table --- DATA TABLE
 DROP TABLE IF EXISTS products;
---------- Products table --- DATA TABLE
 CREATE TABLE products(
-    product_pk          TEXT UNIQUE,
-    product_name        TEXT,
-    product_description TEXT,
-    product_price       INTEGER,
-    product_stock       INTEGER,
-    category_fk         TEXT,
+    product_pk              TEXT UNIQUE,
+    product_name            TEXT,
+    product_description     TEXT,
+    product_price           INTEGER,
+    product_stock           INTEGER,
+    category_fk             TEXT,
     PRIMARY KEY (product_pk)
     FOREIGN KEY (category_fk) REFERENCES categories(category_pk)
 ) WITHOUT ROWID;
 
------------ INSERT INTO products table
+DROP INDEX IF EXISTS index_products;
+CREATE INDEX index_products
+ON products (product_name);
+
+------ INSERT INTO products table
 INSERT INTO products (product_pk, product_name, product_description, product_price, product_stock, category_fk) VALUES
     ('1', 'Product 1', 'Description of product 1', 10.99, 100, '1'),
     ('2', 'Product 2', 'Description of product 2', 20.0, 200, '2'),
@@ -32,8 +44,9 @@ INSERT INTO products (product_pk, product_name, product_description, product_pri
 
 SELECT * FROM products ORDER BY product_price ASC;
 
+
+------ Categories table --- LOOKUP TABLE
 DROP TABLE IF EXISTS categories;
----------- Categories table --- LOOKUP TABLE
 CREATE TABLE categories(
     category_pk     TEXT UNIQUE,
     category_name   TEXT,
@@ -50,27 +63,28 @@ INSERT INTO categories(category_pk, category_name) VALUES
 
 SELECT * FROM categories;
 
------------- Orders table ---- TRANSACTION TABLE
+------- Orders table ---- TRANSACTION TABLE
 DROP TABLE IF EXISTS orders;    
 CREATE TABLE orders(
     order_pk        TEXT UNIQUE,
     customer_fk     TEXT,
-    order_amount    INTEGER,
+    order_amount    REAL DEFAULT 0.0,
     order_status    TEXT,
     order_date      TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (order_pk),
-    FOREIGN KEY (customer_fk) REFERENCES customers(customer_pk) ON DELETE CASCADE
+    FOREIGN KEY (customer_fk) REFERENCES customers(customer_pk)
 ) WITHOUT ROWID;
 
-INSERT INTO orders (order_pk, customer_fk, order_amount, order_status) VALUES
-    ('1001', '1', 1500, 'Shipped'),
-    ('1002', '2', 800, 'Processing'),
-    ('1003', '3', 3000, 'Delivered'),
-    ('1004', '4', 500, 'Pending');
+INSERT INTO orders (order_pk, customer_fk, order_status) VALUES
+('1001', '1', 'Shipped'),
+('1002', '2', 'Processing'),
+('1003', '3', 'Delivered'),
+('1004', '4', 'Pending'),
+('1005', '1', 'Shipped');
 
 SELECT * FROM orders;
 
-------- Ordered_products table ---- JUNCTION TABLE
+------ Ordered_products table ---- JUNCTION TABLE
 DROP TABLE IF EXISTS ordered_products;
 CREATE TABLE ordered_products(
     order_item_pk       TEXT,
@@ -84,18 +98,17 @@ CREATE TABLE ordered_products(
 
 INSERT INTO ordered_products (order_item_pk, order_fk, product_fk, order_quantity) VALUES
     ('20001', '1001', '1', 2),
-    ('20002', '1001', '4', 1), 
     ('20003', '1002', '2', 1), 
-    ('20004', '1002', '3', 3),
     ('20005', '1003', '5', 2), 
-    ('20006', '1003', '8', 1), 
-    ('20007', '1004', '9', 1), 
-    ('20008', '1004', '10', 2); 
+    ('20008', '1004', '4', 2),
+    ('20009', '1005', '2', 2); 
+
 
 SELECT * FROM ordered_products;
 
+
 DROP TABLE IF EXISTS customers;
--------- Customers table --- DATA TABLE
+------- Customers table --- DATA TABLE
 CREATE TABLE customers(
     customer_pk         TEXT UNIQUE,
     customer_name       TEXT,
@@ -121,25 +134,26 @@ SELECT * FROM customers;
 ---------- Payments table --- TRANSACTION TABLE
 DROP TABLE IF EXISTS payments;
 CREATE TABLE payments(
-    payment_pk      TEXT UNIQUE,
-    order_fk        TEXT,
-    payment_date    TEXT DEFAULT CURRENT_TIMESTAMP,
-    payment_amount  INTEGER,
-    payment_method  TEXT,
+    payment_pk          TEXT UNIQUE,
+    order_fk            TEXT,
+    payment_date        TEXT DEFAULT CURRENT_TIMESTAMP,
+    payment_amount      INTEGER,
+    payment_method      TEXT,
     PRIMARY KEY (payment_pk),
     FOREIGN KEY (order_fk) REFERENCES orders(order_pk) ON DELETE CASCADE
 ) WITHOUT ROWID;
 
 INSERT INTO payments (payment_pk, order_fk, payment_amount, payment_method) VALUES
-    ('2001', '1001', 1500, 'Credit Card'),
-    ('2002', '1002', 800, 'PayPal'),
-    ('2003', '1003', 3000, 'Bank Transfer'),
-    ('2004', '1004', 500, 'Cash');
+('2001', '1001', (SELECT order_amount FROM orders WHERE order_pk = '1001'), 'Credit Card'),
+('2002', '1002', (SELECT order_amount FROM orders WHERE order_pk = '1002'), 'PayPal'),
+('2003', '1003', (SELECT order_amount FROM orders WHERE order_pk = '1003'), 'Bank Transfer'),
+('2004', '1004', (SELECT order_amount FROM orders WHERE order_pk = '1004'), 'Cash'),
+('2005', '1005', (SELECT order_amount FROM orders WHERE order_pk = '1005'), 'Credit Card');
 
 SELECT * FROM payments;
 
 DROP TABLE IF EXISTS shippings;
--- Creating the shippings table ---- DATA TABLE
+-- Shippings table ---- DATA TABLE
 CREATE TABLE shippings(
     shipping_pk         TEXT UNIQUE,
     order_fk            TEXT,
@@ -155,7 +169,8 @@ INSERT INTO shippings (shipping_pk, order_fk, shipping_date, shipping_address, s
     ('3001', '1001', '2024-02-25', 'address1', 'Shipped'),
     ('3002', '1002', '2024-02-24', 'address2', 'Processing'),
     ('3003', '1003', '2024-02-23', 'address3', 'Delivered'),
-    ('3004', '1004', '2025-02-26', 'address4', 'Pending');
+    ('3004', '1004', '2025-02-26', 'address4', 'Pending'),
+    ('3005', '1005', '2024-02-25', 'address1', 'Shipped');
 
 SELECT * FROM shippings;
 
@@ -279,7 +294,7 @@ SELECT * FROM customer_same_address;
 
 
 
--- TRIGGERS
+---- TRIGGERS
 
 -- UDATES STOCK WHEN INSERTING NEW ROW INTO ordered_products
 CREATE TRIGGER IF NOT EXISTS update_product_stock
@@ -321,12 +336,12 @@ BEGIN
     VALUES (NEW.order_pk, OLD.order_status, NEW.order_status);
 END;
 
-INSERT INTO orders (order_pk, customer_fk, order_date, order_amount, order_status)
-VALUES ('226', '1', '2024-02-23', 1500, 'Pending');
+INSERT INTO orders (order_pk, customer_fk, order_date, order_status)
+VALUES ('228', '1', '2024-02-23', 'Pending');
 
 UPDATE orders
 SET order_status = 'Shipped' 
-WHERE order_pk = '226';
+WHERE order_pk = '228';
 
 SELECT * FROM order_status_changes;
 
@@ -335,9 +350,9 @@ SELECT * FROM order_status_changes;
 
 -- CRUD
 INSERT INTO 
-products (product_pk, product_name, product_description, product_price, product_stock) 
+products (product_pk, product_name, product_description, product_price, product_stock, category_fk) 
 VALUES
-('80', 'Product 80', 'Description of product 80', 10.99, 100);
+('80', 'Product 80', 'Description of product 80', 10.99, 100,);
 
 
 -- UNION 
@@ -371,6 +386,25 @@ FROM orders
 GROUP BY customer_fk
 HAVING COUNT (*) > 1;
 
+---- FULL TEXT SEARCH
+DROP TABLE IF EXISTS products_fts;
+DROP TABLE IF EXISTS customers_fts;
+
+CREATE VIRTUAL TABLE products_fts USING FTS5(product_name, product_description);
+CREATE VIRTUAL TABLE customers_fts USING FTS5(customer_name, customer_email);
+
+INSERT INTO products_fts (product_name, product_description)
+SELECT product_name, product_description FROM products;
+
+INSERT INTO customers_fts (customer_name, customer_email)
+SELECT customer_name, customer_email FROM customers;
+
+SELECT * FROM products_fts WHERE products_fts MATCH 'Product 4'; 
+
+SELECT * FROM products_fts WHERE products_fts MATCH 'Product 1';
+SELECT * FROM customers_fts WHERE customers_fts MATCH 'customerName1';
+
+
 
 -- READ
 SELECT * FROM products ORDER BY product_price ASC;
@@ -383,5 +417,5 @@ SET product_price = 15.99
 WHERE product_pk = '1';
 
 -- DELETE 
-DELETE FROM shippings
-WHERE shipping_pk = 'SH1005';
+DELETE FROM products
+WHERE product_pk = '80';
